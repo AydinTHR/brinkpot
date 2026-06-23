@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/* Brinkpot design tokens. Tailwind v4 reads @theme to generate utilities
+   (bg-gold, text-brink, etc.) so the palette stays in one place. */
+@theme {
+  --color-void: #0a0a0f;
+  --color-surface: #14141f;
+  --color-surface-2: #1d1d2b;
+  --color-line: #2a2a3c;
+  --color-ink: #e8e8f0;
+  --color-muted: #8a8aa0;
+
+  --color-gold: #f5c542;
+  --color-gold-deep: #d4a017;
+  --color-king: #ffd95a;
+
+  --color-brink: #ff4d5e;
+  --color-brink-deep: #c41e3a;
+  --color-calm: #3ddc97;
+  --color-amber: #ffae42;
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(245, 197, 66, 0.08), transparent 60%),
+    var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
