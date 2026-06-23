@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Vite 8 requires Node 20.19+ / 22.12+, so 18 is intentionally dropped.
+        node-version: ["20", "22"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm run coverage
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+
+  # Stable required check. Branch protection requires "CI".
+  CI:
+    runs-on: ubuntu-latest
+    needs: [test, e2e]
+    if: always()
+    steps:
+      - name: Aggregate results
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "test job did not succeed"
+            exit 1
+          fi
+          if [ "${{ needs.e2e.result }}" != "success" ]; then
+            echo "e2e job did not succeed"
+            exit 1
+          fi
+          echo "all checks passed"
