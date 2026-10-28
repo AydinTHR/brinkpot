@@ -8,6 +8,7 @@ import { KingBanner } from "./KingBanner";
 import { PotDisplay } from "./PotDisplay";
 import { ResultModal } from "./ResultModal";
 import { RivalsStrip } from "./RivalsStrip";
+import { RoundHistory } from "./RoundHistory";
 import { Wallet } from "./Wallet";
 
 function StatItem({ label, value }: { label: string; value: string }) {
@@ -62,6 +63,8 @@ export function GameScreen() {
         <ActivityFeed />
         <FairnessPanel />
       </div>
+
+      <RoundHistory />
 
       <footer className="pb-4 text-center text-xs text-muted">
         Play money only. No real wagering. Built as a portfolio project.
