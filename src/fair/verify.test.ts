@@ -92,6 +92,25 @@ describe("verifyRound", () => {
     expect(report.outcomeMatches).toBe(false);
   });
 
+  it("rejects an outcome whose end time differs", async () => {
+    // An edited action log can keep the same winner and pot (the pot depends only
+    // on how many buy-ins happened) while moving when the round ends.
+    const actions: HumanActionLog[] = [{ atElapsedMs: 0 }];
+    const { serverSeed, serverSeedHash, run } = await playRound(actions);
+    const result = run.finalState.result!;
+    const tampered = { ...result, resolvedAtElapsedMs: result.resolvedAtElapsedMs + 50 };
+    const report = await verifyRound(serverSeedHash, tampered, {
+      serverSeed,
+      clientSeed: CLIENT_SEED,
+      nonce: NONCE,
+      config: DEFAULT_CONFIG,
+      humanName: "You",
+      humanBalanceCents: HUMAN_BALANCE,
+      humanActions: actions,
+    });
+    expect(report.outcomeMatches).toBe(false);
+  });
+
   it("the outcome genuinely depends on the human action log", () => {
     // Fixed seed so the assertion is deterministic. With this seed, buying in
     // late changes who is left standing (the pot is path-independent: it is the
