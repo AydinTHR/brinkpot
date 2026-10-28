@@ -87,7 +87,6 @@ why there is no server.
 
 ```bash
 pre-commit install                 # enable the local checks
-pre-commit install --hook-type commit-msg
 ```
 
 - Branching: short-lived feature branches off `main`, merged via pull request.

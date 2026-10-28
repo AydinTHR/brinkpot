@@ -1,5 +1,5 @@
-# Enable with: pre-commit install   (installs both pre-commit and commit-msg hooks)
-default_install_hook_types: [pre-commit, commit-msg]
+# Enable with: pre-commit install
+default_install_hook_types: [pre-commit]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -33,8 +33,3 @@ repos:
         entry: python3 scripts/check_no_emdash.py
         language: system
         types_or: [markdown, text, javascript, jsx, ts, tsx]
-      - id: strip-ai-attribution
-        name: strip AI attribution from commit message
-        entry: scripts/strip_ai_attribution.sh
-        language: system
-        stages: [commit-msg]
