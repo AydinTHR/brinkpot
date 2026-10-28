@@ -7,7 +7,7 @@ import { verifyRound } from "../fair/verify";
 import type { VerifyReport } from "../fair/verify";
 import { HUMAN_ID, setupSimulation, stepSimulation } from "../sim/runRound";
 import type { HumanActionLog, Simulation } from "../sim/runRound";
-import { FEED_LIMIT, HISTORY_LIMIT, SCHEMA_VERSION } from "../lib/constants";
+import { FEED_LIMIT, HISTORY_LIMIT, HUMAN_NAME, SCHEMA_VERSION } from "../lib/constants";
 import { loadPersisted, savePersisted } from "./persistence";
 import type { HistoryEntry, PersistedState, Stats } from "./persistence";
 
@@ -66,6 +66,10 @@ function snapshotPersisted(s: GameState): PersistedState {
     history: s.history,
     clientSeed: s.fairness.clientSeed,
     nextNonce: s.nextNonce,
+    roundInProgress:
+      s.appPhase === "active" && s.wallet < s.roundStartWallet
+        ? { startWalletCents: s.roundStartWallet }
+        : null,
   };
 }
 
@@ -119,6 +123,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       nextNonce: p.nextNonce,
       fairness: { ...get().fairness, clientSeed: p.clientSeed },
     });
+    // Save now: an abandoned round was just settled, and must not be settled twice.
+    savePersisted(snapshotPersisted(get()));
     await get().prepareRound();
   },
 
@@ -130,7 +136,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const sim = setupSimulation({
       roundSeed,
       config,
-      humanName: "You",
+      humanName: HUMAN_NAME,
       humanBalanceCents: wallet,
     });
     set({
@@ -222,6 +228,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         serverSeed: st.secretSeed ?? "",
         clientSeed: st.fairness.clientSeed,
         nonce: st.fairness.nonce,
+        config: st.config,
+        startWalletCents: st.roundStartWallet,
+        humanActions,
+        result,
       };
       const history = [entry, ...st.history].slice(0, HISTORY_LIMIT);
 
@@ -241,6 +251,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       return;
     }
 
+    if (humanBuy) {
+      // A buy-in leaves the saved wallet now, not when the round ends, so
+      // reloading the page mid-round cannot undo it.
+      set({
+        round: sim.state,
+        feed,
+        humanActions,
+        buyQueued: false,
+        wallet: sim.state.participants[HUMAN_ID]!.balanceCents,
+      });
+      savePersisted(snapshotPersisted(get()));
+      return;
+    }
     set({ round: sim.state, feed, humanActions, buyQueued: false });
   },
 
@@ -267,7 +290,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       clientSeed: st.fairness.clientSeed,
       nonce: st.fairness.nonce,
       config: st.config,
-      humanName: "You",
+      humanName: HUMAN_NAME,
       humanBalanceCents: st.roundStartWallet,
       humanActions: st.humanActions,
     });

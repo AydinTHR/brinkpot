@@ -1,6 +1,10 @@
 import { START_WALLET_CENTS } from "../engine/config";
+import type { EngineConfig, RoundResult } from "../engine/types";
 import { randomHex } from "../fair/hash";
-import { HISTORY_LIMIT, SCHEMA_VERSION, STORAGE_KEY } from "../lib/constants";
+import { verifyRound } from "../fair/verify";
+import type { VerifyReport } from "../fair/verify";
+import { HISTORY_LIMIT, HUMAN_NAME, SCHEMA_VERSION, STORAGE_KEY } from "../lib/constants";
+import type { HumanActionLog } from "../sim/runRound";
 
 export interface Stats {
   roundsPlayed: number;
@@ -19,6 +23,11 @@ export interface HistoryEntry {
   serverSeed: string;
   clientSeed: string;
   nonce: number;
+  // The rest of the replay input, so the round can be verified at any time later.
+  config: EngineConfig;
+  startWalletCents: number;
+  humanActions: HumanActionLog[];
+  result: RoundResult;
 }
 
 export interface PersistedState {
@@ -29,6 +38,8 @@ export interface PersistedState {
   clientSeed: string;
   /** The next nonce to use; increments every round prepared. */
   nextNonce: number;
+  /** Set while the player has buy-ins in a live round, which a reload forfeits. */
+  roundInProgress: { startWalletCents: number } | null;
 }
 
 export function defaultPersisted(): PersistedState {
@@ -39,7 +50,24 @@ export function defaultPersisted(): PersistedState {
     history: [],
     clientSeed: randomHex(4),
     nextNonce: 0,
+    roundInProgress: null,
   };
+}
+
+/** Saved before history stored replay inputs; such a round cannot be re-verified. */
+function isReplayable(entry: Partial<HistoryEntry>): entry is HistoryEntry {
+  return (
+    typeof entry.serverSeedHash === "string" &&
+    typeof entry.serverSeed === "string" &&
+    typeof entry.clientSeed === "string" &&
+    typeof entry.nonce === "number" &&
+    typeof entry.config === "object" &&
+    entry.config !== null &&
+    typeof entry.startWalletCents === "number" &&
+    Array.isArray(entry.humanActions) &&
+    typeof entry.result === "object" &&
+    entry.result !== null
+  );
 }
 
 /** Load persisted state, falling back to defaults on absence, parse error, or
@@ -51,16 +79,28 @@ export function loadPersisted(): PersistedState {
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     if (parsed.schemaVersion !== SCHEMA_VERSION) return fallback;
+    const wallet = typeof parsed.wallet === "number" ? parsed.wallet : fallback.wallet;
+    const stats = { ...fallback.stats, ...(parsed.stats ?? {}) };
+    const pending = parsed.roundInProgress;
+    if (pending && typeof pending.startWalletCents === "number") {
+      // The page closed with buy-ins in a live round. A round cannot be resumed,
+      // so it counts as lost; refunding it would make reloading a free undo.
+      stats.roundsPlayed += 1;
+      stats.netCents += wallet - pending.startWalletCents;
+    }
     return {
       schemaVersion: SCHEMA_VERSION,
-      wallet: typeof parsed.wallet === "number" ? parsed.wallet : fallback.wallet,
-      stats: { ...fallback.stats, ...(parsed.stats ?? {}) },
-      history: Array.isArray(parsed.history) ? parsed.history.slice(0, HISTORY_LIMIT) : [],
+      wallet,
+      stats,
+      history: Array.isArray(parsed.history)
+        ? parsed.history.filter(isReplayable).slice(0, HISTORY_LIMIT)
+        : [],
       clientSeed:
         typeof parsed.clientSeed === "string" && parsed.clientSeed.length > 0
           ? parsed.clientSeed
           : fallback.clientSeed,
       nextNonce: typeof parsed.nextNonce === "number" ? parsed.nextNonce : 0,
+      roundInProgress: null,
     };
   } catch {
     return fallback;
@@ -73,4 +113,17 @@ export function savePersisted(state: PersistedState): void {
   } catch {
     // Storage unavailable or over quota: a play-money game can safely skip saving.
   }
+}
+
+/** Re-verify a past round from its stored commitment, seeds, and replay inputs. */
+export function verifyHistoryEntry(entry: HistoryEntry): Promise<VerifyReport> {
+  return verifyRound(entry.serverSeedHash, entry.result, {
+    serverSeed: entry.serverSeed,
+    clientSeed: entry.clientSeed,
+    nonce: entry.nonce,
+    config: entry.config,
+    humanName: HUMAN_NAME,
+    humanBalanceCents: entry.startWalletCents,
+    humanActions: entry.humanActions,
+  });
 }

@@ -8,7 +8,6 @@ Thanks for taking the time to contribute.
 git clone https://github.com/AydinTHR/brinkpot.git
 cd brinkpot
 pre-commit install
-pre-commit install --hook-type commit-msg
 ```
 
 ## Workflow
@@ -36,7 +35,6 @@ Subjects are short and in the imperative mood, for example
 
 - No em dashes anywhere in the project, the README most of all. A local check fails
   the commit if one slips in. Use a comma, a colon, parentheses, or two sentences.
-- Commit messages carry no AI or tool attribution. A local hook strips it as a backstop.
 
 ## Code style
 

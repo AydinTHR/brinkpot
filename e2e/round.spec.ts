@@ -46,6 +46,11 @@ test("plays a full round and verifies it provably fair", async ({ page }) => {
   await expect(page.getByTestId("verify-outcome")).toContainText("✓");
   await expect(page.getByTestId("verify-outcome")).toContainText("Outcome reproduced");
 
+  // The finished round is listed under past rounds and re-verifies from storage.
+  await expect(page.getByTestId("history-row")).toHaveCount(1);
+  await page.getByTestId("history-verify").click();
+  await expect(page.getByTestId("history-verdict")).toContainText("✓ Verified");
+
   // Stats persisted to localStorage.
   const persisted = await page.evaluate(() => window.localStorage.getItem("brinkpot.v1"));
   expect(persisted).not.toBeNull();
@@ -55,4 +60,20 @@ test("plays a full round and verifies it provably fair", async ({ page }) => {
   // Playing again mints a fresh commitment (a new hash).
   await page.getByTestId("next-round").click();
   await expect(page.getByTestId("commit-hash")).not.toHaveText(firstCommit);
+});
+
+test("reloading mid-round keeps the buy-in spent", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/?fast=1");
+  const wallet = page.getByTestId("wallet");
+  const before = (await wallet.textContent())?.trim() ?? "";
+
+  await page.getByTestId("start").click();
+  await page.getByTestId("buyin").click();
+  await expect(wallet).not.toHaveText(before);
+  const afterBuyIn = (await wallet.textContent())?.trim() ?? "";
+
+  await page.reload();
+  await expect(page.getByTestId("start")).toBeVisible();
+  await expect(wallet).toHaveText(afterBuyIn);
 });

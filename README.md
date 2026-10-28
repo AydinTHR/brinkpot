@@ -34,7 +34,10 @@ recomputes two things:
 1. that `SHA-256(serverSeed)` equals the hash you were shown before play (the seed was
    not swapped), and
 2. that replaying the round from that seed and your recorded actions reproduces the exact
-   winner and pot you saw.
+   winner, pot, and end time you saw.
+
+Every finished round keeps its seeds and your moves, so any of the last 25 can be
+re-verified later from the Past rounds list.
 
 Because the engine is pure and deterministic, this is a guarantee, not an estimate. See
 [docs/adr/0002-provably-fair-commit-reveal.md](./docs/adr/0002-provably-fair-commit-reveal.md).
@@ -87,7 +90,6 @@ why there is no server.
 
 ```bash
 pre-commit install                 # enable the local checks
-pre-commit install --hook-type commit-msg
 ```
 
 - Branching: short-lived feature branches off `main`, merged via pull request.
